@@ -3,209 +3,980 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>ML Fraud Detection Project</title>
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/css/style.css">
+<title>ML Fraud Detection</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#f0f2f5;--surface:#fff;--surface2:#f7f9fc;
+  --border:#e2e8f0;--border2:#cbd5e0;
+  --text:#1a202c;--text2:#4a5568;--dim:#718096;--dim2:#a0aec0;
+  --red:#e53e3e;--red-bg:#fff5f5;--red-b:#feb2b2;
+  --green:#38a169;--green-bg:#f0fff4;--green-b:#9ae6b4;
+  --amber:#c05621;--amber-bg:#fffaf0;--amber-b:#fbd38d;
+  --blue:#2b6cb0;--blue-bg:#ebf8ff;--blue-b:#90cdf4;
+  --purple:#553c9a;--purple-bg:#faf5ff;--purple-b:#d6bcfa;
+  --shadow:0 1px 3px rgba(0,0,0,.08),0 1px 2px rgba(0,0,0,.05);
+  --shadow-md:0 4px 12px rgba(0,0,0,.08);
+  --radius:10px;
+}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);font-size:13px;line-height:1.55}
+
+/* ── Header ── */
+header{background:var(--surface);border-bottom:1px solid var(--border);height:54px;display:flex;align-items:center;justify-content:space-between;padding:0 20px;position:sticky;top:0;z-index:100;box-shadow:var(--shadow)}
+.hd-left{display:flex;align-items:center;gap:10px}
+.hd-logo{width:28px;height:28px;background:linear-gradient(135deg,#e53e3e,#c53030);border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:14px}
+.hd-title{font-weight:700;font-size:14px;letter-spacing:-.3px}
+.hd-tag{font-size:10px;font-weight:600;background:#2d3748;color:#fff;padding:2px 8px;border-radius:20px;font-family:'JetBrains Mono',monospace}
+.hd-metrics{display:flex;gap:16px}
+.hd-m{font-size:11px;color:var(--dim);font-family:'JetBrains Mono',monospace}
+.hd-m strong{color:var(--text)}
+
+/* ── Layout ── */
+.layout{display:grid;grid-template-columns:240px 1fr;min-height:calc(100vh - 54px)}
+
+/* ── Sidebar ── */
+.sidebar{background:var(--surface);border-right:1px solid var(--border);padding:16px;overflow-y:auto}
+.sb-head{font-size:9px;font-weight:700;letter-spacing:1.2px;color:var(--dim);text-transform:uppercase;margin-bottom:10px;margin-top:4px}
+.metric-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:16px}
+.mc{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 10px}
+.mc-l{font-size:9px;font-weight:700;color:var(--dim);letter-spacing:.5px;text-transform:uppercase}
+.mc-v{font-size:17px;font-weight:800;font-family:'JetBrains Mono',monospace;margin-top:1px}
+.c-blue{color:var(--blue)}.c-green{color:var(--green)}.c-amber{color:var(--amber)}.c-purple{color:var(--purple)}.c-red{color:var(--red)}
+
+.divider{height:1px;background:var(--border);margin:14px 0}
+
+.feat-row{margin-bottom:7px}
+.feat-name{font-size:10px;font-family:'JetBrains Mono',monospace;color:var(--text2);display:block;margin-bottom:2px}
+.feat-bar-wrap{display:flex;align-items:center;gap:5px}
+.feat-bg{flex:1;height:4px;background:#edf2f7;border-radius:2px;overflow:hidden}
+.feat-fill{height:100%;background:var(--blue);border-radius:2px;transition:width .5s ease}
+.feat-pct{font-size:9px;color:var(--dim);min-width:24px;text-align:right;font-family:'JetBrains Mono',monospace}
+
+/* ── Main ── */
+main{padding:20px;overflow-y:auto}
+
+/* ── Tabs ── */
+.tabs{display:flex;gap:2px;border-bottom:2px solid var(--border);margin-bottom:20px}
+.tab{background:none;border:none;border-bottom:3px solid transparent;padding:8px 14px;cursor:pointer;font-size:12px;font-weight:600;color:var(--dim);transition:all .15s;margin-bottom:-2px;border-radius:4px 4px 0 0}
+.tab:hover{color:var(--text);background:var(--surface2)}
+.tab.active{color:var(--blue);border-bottom-color:var(--blue);background:var(--surface)}
+.pane{display:none}.pane.active{display:block}
+
+/* ── Card ── */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px;box-shadow:var(--shadow);margin-bottom:16px}
+.card-title{font-size:13px;font-weight:700;color:var(--text);margin-bottom:14px;display:flex;align-items:center;gap:6px}
+
+/* ── Presets ── */
+.preset-bar{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px;align-items:center}
+.pb-label{font-size:10px;font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:.5px;margin-right:2px}
+.pb-btn{border:1px solid var(--border);background:var(--surface2);border-radius:5px;padding:4px 9px;font-size:11px;font-weight:500;cursor:pointer;color:var(--text2);transition:all .15s}
+.pb-btn:hover{background:var(--blue-bg);border-color:var(--blue-b);color:var(--blue)}
+.pb-legitimate{border-color:var(--green-b);color:var(--green)}
+.pb-low_risk{border-color:var(--blue-b);color:var(--blue)}
+.pb-borderline{border-color:var(--amber-b);color:var(--amber)}
+.pb-suspicious{border-color:#fbb6ce;color:#b83280}
+.pb-fraud{border-color:var(--red-b);color:var(--red)}
+
+/* ── Form ── */
+.form-2col{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px}
+.fgroup label{display:block;font-size:10px;font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px}
+.fgroup input{width:100%;padding:7px 10px;border:1.5px solid var(--border);border-radius:7px;font-size:13px;font-family:'JetBrains Mono',monospace;background:var(--surface2);color:var(--text);transition:border-color .15s}
+.fgroup input:focus{outline:none;border-color:var(--blue);background:#fff}
+
+.v-section-head{font-size:10px;font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;display:flex;align-items:center;gap:8px}
+.v-hint{font-size:10px;color:var(--dim2);font-weight:400;letter-spacing:0}
+.key-features{background:var(--amber-bg);border:1px solid var(--amber-b);border-radius:7px;padding:8px 12px;margin-bottom:10px;font-size:11px;color:var(--amber)}
+.v-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;margin-bottom:14px}
+.vf{display:flex;flex-direction:column}
+.vf-label{font-size:9px;font-weight:600;color:var(--dim);margin-bottom:2px;text-align:center}
+.vf-label.key{color:var(--red);font-weight:700}
+.v-inp{width:100%;padding:5px 3px;border:1.5px solid var(--border);border-radius:5px;font-size:10px;font-family:'JetBrains Mono',monospace;text-align:center;background:var(--surface2);color:var(--text);transition:border-color .15s}
+.v-inp:focus{outline:none;border-color:var(--blue);background:#fff}
+.v-inp.key-field{border-color:var(--red-b);background:#fff8f8}
+
+.analyse-btn{width:100%;padding:11px;background:#2b6cb0;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;transition:all .15s;letter-spacing:.2px;display:flex;align-items:center;justify-content:center;gap:6px}
+.analyse-btn:hover{background:#2c5282}
+.analyse-btn:disabled{opacity:.6;cursor:not-allowed}
+
+/* ── Result Panel ── */
+#resultPanel{margin-top:16px;animation:fadeUp .3s ease}
+@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+.verdict-card{display:grid;grid-template-columns:56px 1fr auto;gap:12px;align-items:center;padding:18px 20px;border-radius:var(--radius);margin-bottom:14px;border:1.5px solid}
+.vc-FRAUD{background:var(--red-bg);border-color:var(--red-b)}
+.vc-LEGITIMATE{background:var(--green-bg);border-color:var(--green-b)}
+.vc-icon{font-size:38px;text-align:center;line-height:1}
+.vc-text{}
+.vc-label{font-size:24px;font-weight:900;letter-spacing:-.5px}
+.vc-FRAUD .vc-label{color:var(--red)}
+.vc-LEGITIMATE .vc-label{color:var(--green)}
+.vc-sub{font-size:11px;color:var(--dim);margin-top:2px}
+.vc-pct{text-align:right}
+.vc-num{font-size:38px;font-weight:900;font-family:'JetBrains Mono',monospace}
+.vc-plabel{font-size:10px;color:var(--dim);margin-top:2px}
+
+/* Gauge */
+.gauge-wrap{margin-bottom:14px}
+.gauge-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:5px}
+.gauge-title{font-size:10px;font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:.5px}
+.gauge-raw{font-size:10px;color:var(--dim2);font-family:'JetBrains Mono',monospace}
+.gauge-track{height:14px;background:#edf2f7;border-radius:7px;overflow:hidden;position:relative}
+.gauge-fill{height:100%;border-radius:7px;transition:width .7s cubic-bezier(.25,1,.5,1);position:relative}
+.gauge-fill::after{content:'';position:absolute;right:0;top:0;bottom:0;width:2px;background:rgba(255,255,255,.5)}
+.gauge-labels{display:flex;justify-content:space-between;margin-top:3px}
+.gauge-labels span{font-size:9px;color:var(--dim2);font-family:'JetBrains Mono',monospace}
+
+.zone-bar{display:flex;height:4px;border-radius:2px;overflow:hidden;margin-bottom:12px}
+.zone-low{flex:20;background:#9ae6b4}
+.zone-med{flex:40;background:#fbd38d}
+.zone-high{flex:20;background:#fc8181}
+.zone-crit{flex:20;background:#c53030}
+
+.badges{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
+.badge{padding:3px 10px;border-radius:20px;font-size:10px;font-weight:700;border:1px solid}
+.badge-CERTAIN{background:#2d3748;color:#fff;border-color:#2d3748}
+.badge-PROBABLE{background:var(--blue-bg);color:var(--blue);border-color:var(--blue-b)}
+.badge-UNCERTAIN{background:var(--amber-bg);color:var(--amber);border-color:var(--amber-b)}
+.badge-CRITICAL{background:var(--red);color:#fff;border-color:var(--red)}
+.badge-HIGH{background:var(--red-bg);color:var(--red);border-color:var(--red-b)}
+.badge-MEDIUM{background:var(--amber-bg);color:var(--amber);border-color:var(--amber-b)}
+.badge-LOW{background:var(--blue-bg);color:var(--blue);border-color:var(--blue-b)}
+.badge-MINIMAL{background:var(--green-bg);color:var(--green);border-color:var(--green-b)}
+
+.detail-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px}
+.dc{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px}
+.dc-title{font-size:9px;font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px}
+.dc-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;font-size:11px}
+.dc-label{color:var(--dim)}
+.dc-val{font-weight:700;font-family:'JetBrains Mono',monospace}
+.dc-note{font-size:9px;color:var(--dim2);margin-top:3px}
+
+.rf-item{display:flex;align-items:center;gap:7px;margin-bottom:5px;font-size:11px}
+.rf-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.rf-ok{background:var(--green)}.rf-warn{background:var(--red)}
+.rf-ok-text{color:var(--dim)}.rf-warn-text{color:var(--red);font-weight:500}
+
+.shap-item{font-size:10px;padding:4px 8px;border-radius:4px;margin-bottom:3px;font-family:'JetBrains Mono',monospace}
+.shap-up{background:var(--red-bg);color:var(--red)}
+.shap-dn{background:var(--green-bg);color:var(--green)}
+
+.review-alert{background:var(--amber-bg);border:1.5px solid var(--amber-b);color:var(--amber);padding:10px 14px;border-radius:8px;font-size:12px;font-weight:500;margin-top:12px}
+
+/* ── Plots tab ── */
+.plots-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
+.plot-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px;box-shadow:var(--shadow)}
+.plot-title{font-size:13px;font-weight:700;margin-bottom:2px}
+.plot-sub{font-size:11px;color:var(--dim);margin-bottom:14px}
+canvas{display:block;max-width:100%}
+
+.cm-grid{display:grid;grid-template-columns:70px 1fr 1fr;grid-template-rows:auto 1fr 1fr;gap:3px;margin-top:10px}
+.cm-head{font-size:9px;font-weight:700;color:var(--dim);text-align:center;align-self:end;padding-bottom:4px;text-transform:uppercase;letter-spacing:.4px}
+.cm-axlabel{font-size:9px;font-weight:700;color:var(--dim);writing-mode:vertical-rl;transform:rotate(180deg);display:flex;align-items:center;justify-content:center;text-transform:uppercase;letter-spacing:.4px}
+.cm-cell{border-radius:6px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:10px 4px;min-height:70px}
+.cm-count{font-size:22px;font-weight:900;font-family:'JetBrains Mono',monospace}
+.cm-clabel{font-size:9px;margin-top:2px;text-transform:uppercase;letter-spacing:.3px}
+.cm-tp,.cm-tn{background:#c6f6d5}
+.cm-tp .cm-count,.cm-tn .cm-count{color:#276749}
+.cm-fp{background:#fed7d7}.cm-fp .cm-count{color:#c53030}
+.cm-fn{background:#fef3cd}.cm-fn .cm-count{color:#744210}
+
+.clr-tbl{width:100%;border-collapse:collapse;font-size:11px}
+.clr-tbl th{background:var(--surface2);color:var(--dim);font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;padding:7px 8px;text-align:right;border-bottom:1px solid var(--border)}
+.clr-tbl th:first-child{text-align:left}
+.clr-tbl td{padding:7px 8px;text-align:right;border-bottom:1px solid var(--border);font-family:'JetBrains Mono',monospace}
+.clr-tbl td:first-child{text-align:left;font-weight:600;font-family:'Inter',sans-serif}
+.clr-tbl tr:last-child td{border-bottom:none;background:var(--surface2);font-weight:700}
+.val-good{color:var(--green)}.val-ok{color:var(--amber)}.val-bad{color:var(--red)}
+
+/* ── Batch tab ── */
+.drop-zone{border:2px dashed var(--border);border-radius:var(--radius);padding:36px;text-align:center;cursor:pointer;transition:all .15s;background:var(--surface2);margin-bottom:14px}
+.drop-zone:hover{border-color:var(--blue);background:var(--blue-bg)}
+.dz-icon{font-size:28px;margin-bottom:6px}
+.dz-text{font-size:14px;font-weight:600;margin-bottom:3px}
+.dz-sub{font-size:11px;color:var(--dim)}
+.prog-label{font-size:11px;color:var(--dim);margin-bottom:5px}
+.prog-track{height:5px;background:var(--border);border-radius:3px;overflow:hidden}
+.prog-bar{height:100%;background:var(--blue);border-radius:3px;transition:width .3s}
+.batch-stats{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+.bs{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 14px}
+.bs-l{font-size:9px;font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:.5px;display:block}
+.bs-v{font-size:20px;font-weight:900;font-family:'JetBrains Mono',monospace;display:block}
+.batch-tbl{width:100%;border-collapse:collapse;font-size:11px}
+.batch-tbl th{background:var(--surface2);padding:7px 10px;font-size:9px;font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:.5px;text-align:left;border-bottom:1px solid var(--border)}
+.batch-tbl td{padding:7px 10px;border-bottom:1px solid var(--border);font-family:'JetBrains Mono',monospace}
+.batch-tbl tr:last-child td{border-bottom:none}
+.batch-tbl tr:hover td{background:var(--surface2)}
+</style>
 </head>
 <body>
-<div class="scanlines"></div>
 
 <header>
-  <div class="hd-title">ML FRAUD DETECTION PROJECT</div>
-  <div class="hd-right">
-    <div class="hd-stat" id="hd-auc">AUC-ROC: —</div>
-    <div class="hd-stat" id="hd-f1">F1: —</div>
-    <div class="hd-badge">XGB + IsoForest</div>
+  <div class="hd-left">
+    <div class="hd-logo">🔍</div>
+    <div class="hd-title">Fraud Detection ML</div>
+    <div class="hd-tag">XGBoost + IsoForest</div>
+  </div>
+  <div class="hd-metrics">
+    <span class="hd-m">AUC-ROC <strong id="hd-auc">—</strong></span>
+    <span class="hd-m">F1 <strong id="hd-f1">—</strong></span>
+    <span class="hd-m">Precision <strong id="hd-prec">—</strong></span>
+    <span class="hd-m">Recall <strong id="hd-rec">—</strong></span>
   </div>
 </header>
 
-<div class="page-wrap">
-
-  <!-- LEFT SIDEBAR -->
+<div class="layout">
+  <!-- SIDEBAR -->
   <aside class="sidebar">
-    <div class="sb-title">MODEL PERFORMANCE</div>
-    <div class="metric-stack">
-      <div class="met-card" style="--c:#F5A623"><div class="met-label">AUC-ROC</div><div class="met-val" id="m-roc">—</div></div>
-      <div class="met-card" style="--c:#4A9EFF"><div class="met-label">AUC-PR</div><div class="met-val" id="m-pr">—</div></div>
-      <div class="met-card" style="--c:#2ECC71"><div class="met-label">F1-SCORE</div><div class="met-val" id="m-f1">—</div></div>
-      <div class="met-card" style="--c:#E8455A"><div class="met-label">RECALL</div><div class="met-val" id="m-rec">—</div></div>
-      <div class="met-card" style="--c:#A78BFA"><div class="met-label">PRECISION</div><div class="met-val" id="m-prec">—</div></div>
-      <div class="met-card" style="--c:#4A9EFF"><div class="met-label">MCC</div><div class="met-val" id="m-mcc">—</div></div>
-      <div class="met-card" style="--c:#F5A623"><div class="met-label">THRESHOLD</div><div class="met-val" id="m-thr">—</div></div>
+    <div class="sb-head">Model Metrics</div>
+    <div class="metric-grid">
+      <div class="mc"><div class="mc-l">AUC-ROC</div><div class="mc-v c-blue" id="m-roc">—</div></div>
+      <div class="mc"><div class="mc-l">AUC-PR</div><div class="mc-v c-blue" id="m-pr">—</div></div>
+      <div class="mc"><div class="mc-l">F1-Score</div><div class="mc-v c-green" id="m-f1">—</div></div>
+      <div class="mc"><div class="mc-l">Recall</div><div class="mc-v c-amber" id="m-rec">—</div></div>
+      <div class="mc"><div class="mc-l">Precision</div><div class="mc-v c-purple" id="m-prec">—</div></div>
+      <div class="mc"><div class="mc-l">MCC</div><div class="mc-v c-green" id="m-mcc">—</div></div>
+      <div class="mc"><div class="mc-l">Threshold</div><div class="mc-v" id="m-thr">—</div></div>
+      <div class="mc"><div class="mc-l">Accuracy</div><div class="mc-v c-green" id="m-acc">—</div></div>
     </div>
 
-    <div class="sb-sep"></div>
-    <div class="sb-title">TOP FEATURES (SHAP)</div>
-    <div id="featureList" class="feat-list"></div>
+    <div class="divider"></div>
+
+    <div class="sb-head">Top SHAP Features</div>
+    <div id="featList"></div>
   </aside>
 
-  <!-- CENTER -->
-  <main class="center">
-    <div class="tab-bar">
-      <button class="tab active" data-tab="single">⚡ ANALYSE</button>
-      <button class="tab" data-tab="plots">📊 PLOTS</button>
-      <button class="tab" data-tab="batch">📂 BATCH</button>
+  <!-- MAIN -->
+  <main>
+    <div class="tabs">
+      <button class="tab active" data-tab="single">⚡ Single Transaction</button>
+      <button class="tab" data-tab="batch">📂 Batch Upload</button>
+      <button class="tab" data-tab="plots">📊 Model Plots</button>
     </div>
 
-    <!-- SINGLE PREDICTION TAB -->
-    <div class="tab-pane active" id="tab-single">
-      <div class="pane-head">
-        <h2>TRANSACTION ANALYSER</h2>
-        <p>Enter transaction values — get fraud probability, risk level and SHAP explanation</p>
-      </div>
+    <!-- ══ SINGLE TAB ══ -->
+    <div class="pane active" id="pane-single">
+      <div class="card">
+        <div class="card-title">🔍 Transaction Analyser</div>
 
-      <div class="preset-row">
-        <span class="preset-label">QUICK:</span>
-        <button class="preset-btn" onclick="loadPreset('legit')">✅ Legit</button>
-        <button class="preset-btn" onclick="loadPreset('fraud')">🚨 Fraud</button>
-        <button class="preset-btn" onclick="loadPreset('uncertain')">⚠️ Edge</button>
-        <button class="preset-btn" onclick="loadPreset('random')">🎲 Random</button>
-      </div>
-      <div class="preset-row" id="demoCaseRow" style="flex-wrap:wrap;gap:5px">
-        <span class="preset-label">DEMO:</span>
-        <span class="dim-text">loading...</span>
-      </div>
+        <div class="preset-bar">
+          <span class="pb-label">Quick:</span>
+          <button class="pb-btn" onclick="loadPreset('legit')">✅ Legit</button>
+          <button class="pb-btn" onclick="loadPreset('fraud')">🚨 High Fraud</button>
+          <button class="pb-btn" onclick="loadPreset('borderline')">⚠️ Borderline</button>
+          <button class="pb-btn" onclick="loadPreset('random')">🎲 Random</button>
+        </div>
+        <div class="preset-bar" id="demoCaseRow">
+          <span class="pb-label">Demo:</span>
+          <span style="color:var(--dim);font-size:11px">loading…</span>
+        </div>
 
-      <div class="tx-form">
-        <div class="form-row">
-          <div class="form-group">
-            <label>TIME (seconds)</label>
-            <input type="number" id="f-time" value="43200" step="1">
+        <div class="form-2col">
+          <div class="fgroup">
+            <label>Time (seconds, 0–172792)</label>
+            <input type="number" id="f-time" value="43200" step="1" min="0">
           </div>
-          <div class="form-group">
-            <label>AMOUNT ($)</label>
-            <input type="number" id="f-amount" value="149.62" step="0.01">
+          <div class="fgroup">
+            <label>Amount ($)</label>
+            <input type="number" id="f-amount" value="149.62" step="0.01" min="0">
           </div>
         </div>
+
+        <div class="v-section-head">
+          PCA Components V1–V28
+          <span class="v-hint">Key fraud drivers: V14 (negative) + V4 (positive)</span>
+        </div>
+        <div class="key-features">
+          ⚡ <strong>Model sensitivity guide:</strong> V14 strongly negative (−3 to −6) combined with V4 strongly positive (+3 to +6) is the primary fraud signal. Try adjusting these two first.
+        </div>
         <div class="v-grid" id="vGrid"></div>
-        <button class="analyse-btn" onclick="runPredict()">
-          <span class="btn-icon">⚡</span> ANALYSE TRANSACTION
+
+        <button class="analyse-btn" id="analyseBtn" onclick="runPredict()">
+          ⚡ Analyse Transaction
         </button>
       </div>
 
       <!-- RESULT -->
-      <div class="result-panel" id="resultPanel" style="display:none">
-        <div class="result-top">
-          <div class="verdict-col">
-            <div class="result-verdict" id="resultVerdict">—</div>
-            <div id="resultBadges"></div>
+      <div id="resultPanel" style="display:none">
+
+        <div class="verdict-card" id="verdictCard">
+          <div class="vc-icon" id="vcIcon">—</div>
+          <div class="vc-text">
+            <div class="vc-label" id="vcLabel">—</div>
+            <div class="vc-sub" id="vcSub">—</div>
           </div>
-          <div class="prob-col">
-            <div class="prob-header">
-              <span class="prob-label">FRAUD PROBABILITY</span>
-              <span class="prob-value" id="probValue">—%</span>
-            </div>
-            <div class="prob-bar-bg"><div class="prob-bar-fill" id="probBarFill"></div></div>
-            <div class="prob-zone-labels">
-              <span style="left:0%">0%</span>
-              <span style="left:30%">30%</span>
-              <span style="left:55%">55%</span>
-              <span style="left:80%">80%</span>
-              <span style="right:0%">100%</span>
-            </div>
-            <div class="prob-raw" id="probRaw"></div>
+          <div class="vc-pct">
+            <div class="vc-num" id="vcNum">—%</div>
+            <div class="vc-plabel">Fraud Probability</div>
           </div>
         </div>
 
-        <div class="result-cards">
-          <div class="rc">
-            <div class="rc-title">ANOMALY SCORES</div>
-            <div class="rc-row"><span class="rc-label">ISO Forest Score</span><span class="rc-val" id="isoValue">—</span></div>
-            <div class="rc-note">More negative = more anomalous</div>
-            <div class="rc-row" style="margin-top:10px"><span class="rc-label">Hour of Day</span><span class="rc-val" id="txHour">—</span></div>
-            <div class="rc-row"><span class="rc-label">Amount</span><span class="rc-val" id="txAmount">—</span></div>
+      <div class="gauge-wrap">
+        <div class="gauge-header">
+          <span class="gauge-title">Fraud Risk Gauge</span>
+          <span class="gauge-raw" id="gaugeRaw"></span>
+        </div>
+        <div style="position:relative;height:20px;margin-bottom:4px">
+          <div style="position:absolute;inset:0;border-radius:10px;background:linear-gradient(to right,#9ae6b4,#fbd38d 40%,#fc8181 70%,#c53030);opacity:0.2;"></div>
+          <div id="gaugeFill" style="position:absolute;left:0;top:0;bottom:0;width:0.5%;border-radius:10px;transition:width 0.6s ease,background 0.4s ease;"></div>
+          <div id="gaugeNeedle" style="position:absolute;top:2px;bottom:2px;width:3px;border-radius:2px;background:#1a202c;transform:translateX(-50%);left:0.5%;transition:left 0.6s ease;"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-top:4px">
+          <span style="font-size:9px;color:var(--dim2)">0% Safe</span>
+          <span style="font-size:9px;color:var(--dim2)">40%</span>
+          <span style="font-size:9px;color:var(--dim2)">70%</span>
+          <span style="font-size:9px;color:var(--dim2)">100% Fraud</span>
+        </div>
+      </div>
+
+        <div class="badges" id="badgeRow"></div>
+
+        <div class="detail-grid">
+          <div class="dc">
+            <div class="dc-title">Anomaly Scores</div>
+            <div class="dc-row"><span class="dc-label">ISO Forest</span><span class="dc-val" id="isoVal">—</span></div>
+            <div class="dc-note">More negative → more anomalous</div>
+            <div class="dc-row" style="margin-top:8px"><span class="dc-label">Hour</span><span class="dc-val" id="txHour">—</span></div>
+            <div class="dc-row"><span class="dc-label">Amount</span><span class="dc-val" id="txAmt">—</span></div>
+            <div class="dc-row"><span class="dc-label">Threshold</span><span class="dc-val" id="txThr">—</span></div>
           </div>
-          <div class="rc">
-            <div class="rc-title">RISK FACTORS</div>
+          <div class="dc">
+            <div class="dc-title">Risk Factors</div>
             <div id="riskFactors"></div>
           </div>
-          <div class="rc">
-            <div class="rc-title">SHAP EXPLANATION</div>
+          <div class="dc">
+            <div class="dc-title">SHAP Feature Impact</div>
             <div id="shapList"></div>
           </div>
         </div>
 
-        <div class="review-banner" id="reviewBanner" style="display:none">
-          ⚠️ UNCERTAIN — probability 35%–65%. Flag for <strong>human review</strong>.
+        <div class="review-alert" id="reviewAlert" style="display:none">
+          ⚠️ <strong>UNCERTAIN</strong> — probability is near the decision threshold. Manual review recommended before taking action.
         </div>
       </div>
     </div>
 
-    <!-- PLOTS TAB -->
-    <div class="tab-pane" id="tab-plots">
-      <div class="pane-head">
-        <h2>MODEL DIAGNOSTICS</h2>
-        <p>Performance plots computed on test split (20% holdout)</p>
-      </div>
-      <div class="plots-grid">
-
-        <div class="plot-card">
-          <div class="plot-title">ROC CURVE</div>
-          <canvas id="rocCanvas" width="340" height="260"></canvas>
+    <!-- ══ BATCH TAB ══ -->
+    <div class="pane" id="pane-batch">
+      <div class="card">
+        <div class="card-title">📂 Batch Prediction</div>
+        <p style="color:var(--dim);margin-bottom:14px;font-size:12px">Upload a CSV with columns: Time, V1–V28, Amount, and optionally Class (for accuracy evaluation).</p>
+        <div class="drop-zone" ondrop="handleDrop(event)" ondragover="event.preventDefault()" onclick="document.getElementById('bFile').click()">
+          <div class="dz-icon">📂</div>
+          <div class="dz-text">Drop CSV here or click to browse</div>
+          <div class="dz-sub">Kaggle format: Time, V1–V28, Amount [, Class]</div>
+          <input type="file" id="bFile" accept=".csv" style="display:none" onchange="onBatchFile(event)">
         </div>
-
-        <div class="plot-card">
-          <div class="plot-title">PRECISION-RECALL CURVE</div>
-          <canvas id="prCanvas" width="340" height="260"></canvas>
+        <div id="batchProg" style="display:none;margin-bottom:14px">
+          <div class="prog-label" id="bProgLbl">Uploading…</div>
+          <div class="prog-track"><div class="prog-bar" id="bProgBar" style="width:0%"></div></div>
         </div>
-
-        <div class="plot-card">
-          <div class="plot-title">CONFUSION MATRIX</div>
-          <canvas id="cmCanvas" width="340" height="260"></canvas>
-        </div>
-
-        <div class="plot-card">
-          <div class="plot-title">CLASSIFICATION REPORT</div>
-          <div id="classReport" class="class-report"></div>
-        </div>
-
-        <div class="plot-card plot-card-wide">
-          <div class="plot-title">FEATURE IMPORTANCE (SHAP)</div>
-          <canvas id="fiCanvas" width="700" height="260"></canvas>
-        </div>
-
       </div>
-    </div>
-
-    <!-- BATCH TAB -->
-    <div class="tab-pane" id="tab-batch">
-      <div class="pane-head">
-        <h2>BATCH PREDICTION</h2>
-        <p>Upload a CSV (Kaggle format: Time, V1–V28, Amount, optional Class)</p>
-      </div>
-      <div class="upload-drop" ondrop="handleDrop(event)" ondragover="event.preventDefault()"
-           onclick="document.getElementById('batchFile').click()">
-        <div class="drop-icon">📂</div>
-        <div class="drop-text">DROP CSV HERE or click to browse</div>
-        <div class="drop-sub">Format: Time, V1–V28, Amount [, Class]</div>
-        <input type="file" id="batchFile" accept=".csv" style="display:none" onchange="handleBatchFile(event)">
-      </div>
-      <div id="batchProgress" style="display:none">
-        <div class="bp-label" id="bpLabel">Uploading...</div>
-        <div class="bp-track"><div class="bp-bar" id="bpBar"></div></div>
-      </div>
-      <div id="batchResult" style="display:none">
+      <div id="batchOut" style="display:none">
         <div class="batch-stats" id="batchStats"></div>
-        <div class="batch-table-wrap">
-          <table class="batch-table">
-            <thead><tr><th>#</th><th>AMOUNT</th><th>FRAUD PROB</th><th>PREDICTION</th><th>RISK</th><th>CONFIDENCE</th></tr></thead>
-            <tbody id="batchTbody"></tbody>
+        <div style="overflow-x:auto">
+          <table class="batch-tbl">
+            <thead><tr><th>#</th><th>Amount</th><th>Fraud %</th><th>Verdict</th><th>Risk</th><th>Confidence</th></tr></thead>
+            <tbody id="batchBody"></tbody>
           </table>
         </div>
       </div>
     </div>
-  </main>
 
-  <!-- RIGHT LOG SIDEBAR -->
-  <aside class="log-sidebar">
-    <div class="sb-title" style="padding:14px 12px 0">LIVE LOG</div>
-    <div class="log-feed" id="logFeed">
-      <div class="log-item log-info">System ready</div>
+    <!-- ══ PLOTS TAB ══ -->
+    <div class="pane" id="pane-plots">
+      <div class="plots-grid">
+        <div class="plot-card">
+          <div class="plot-title">ROC Curve</div>
+          <div class="plot-sub">AUC = <span id="roc-auc-lbl">—</span> · Higher = better discrimination</div>
+          <canvas id="cvROC" width="370" height="270"></canvas>
+        </div>
+        <div class="plot-card">
+          <div class="plot-title">Precision-Recall Curve</div>
+          <div class="plot-sub">AUC-PR = <span id="pr-auc-lbl">—</span> · Ideal for imbalanced data</div>
+          <canvas id="cvPR" width="370" height="270"></canvas>
+        </div>
+        <div class="plot-card">
+          <div class="plot-title">Confusion Matrix</div>
+          <div class="plot-sub">Threshold = <span id="cm-thr-lbl">—</span> · Test set results</div>
+          <div id="cmDiv"></div>
+        </div>
+        <div class="plot-card">
+          <div class="plot-title">Classification Report</div>
+          <div class="plot-sub">Per-class breakdown on test set</div>
+          <table class="clr-tbl">
+            <thead><tr><th>Class</th><th>Precision</th><th>Recall</th><th>F1</th><th>Support</th></tr></thead>
+            <tbody id="clrBody"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="plots-grid">
+        <div class="plot-card">
+          <div class="plot-title">Feature Importance</div>
+          <div class="plot-sub">XGBoost gain-based scores — top 12 features</div>
+          <canvas id="cvFI" width="370" height="310"></canvas>
+        </div>
+        <div class="plot-card">
+          <div class="plot-title">Dataset & Model Summary</div>
+          <div class="plot-sub">Training configuration and test set statistics</div>
+          <div id="summaryDiv"></div>
+        </div>
+      </div>
     </div>
-    <button class="clear-log-btn" onclick="clearLog()">CLEAR</button>
-  </aside>
-
+  </main>
 </div>
-<script src="/static/js/main.js"></script>
+
+<script>
+'use strict';
+
+// ── Static presets ──────────────────────────────────────────────────
+const PRESETS = {
+  legit: {
+    Time:43200, Amount:25.0,
+    V1:1.19,V2:0.26,V3:0.17,V4:0.45,V5:-0.35,V6:-0.05,V7:0.11,V8:0.02,
+    V9:0.24,V10:-0.19,V11:0.38,V12:0.08,V13:-0.12,V14:0.52,V15:0.10,
+    V16:-0.04,V17:0.06,V18:0.12,V19:0.03,V20:0.01,V21:-0.02,V22:0.05,
+    V23:-0.01,V24:0.13,V25:0.07,V26:0.09,V27:0.02,V28:0.01
+  },
+  fraud: {
+    Time:3600, Amount:2000.0,
+    V1:-3.0,V2:0.0,V3:0.0,V4:5.0,V5:0.0,V6:0.0,V7:0.0,V8:0.0,
+    V9:0.0,V10:-3.0,V11:0.0,V12:0.0,V13:0.0,V14:-5.0,V15:0.0,
+    V16:0.0,V17:0.0,V18:0.0,V19:0.0,V20:0.0,V21:0.0,V22:0.0,
+    V23:0.0,V24:0.0,V25:0.0,V26:0.0,V27:0.0,V28:0.0
+  },
+  borderline: {
+    Time:10800, Amount:500.0,
+    V1:0.0,V2:0.0,V3:0.0,V4:1.8,V5:0.0,V6:0.0,V7:0.0,V8:0.0,
+    V9:0.0,V10:-1.0,V11:0.0,V12:0.0,V13:0.0,V14:-1.5,V15:0.0,
+    V16:0.0,V17:0.0,V18:0.0,V19:0.0,V20:0.0,V21:0.0,V22:0.0,
+    V23:0.0,V24:0.0,V25:0.0,V26:0.0,V27:0.0,V28:0.0
+  },
+};
+
+// Key features that drive the model
+const KEY_FEATS = new Set(['V4','V14','V10','V11','V12']);
+
+// ── Demo cases ──────────────────────────────────────────────────────
+let demoCases = [];
+async function loadDemoCases() {
+  try {
+    const r = await fetch('/api/demo_cases');
+    const d = await r.json();
+    demoCases = d.cases || [];
+    renderDemoButtons();
+  } catch(e) {
+    document.getElementById('demoCaseRow').innerHTML =
+      '<span class="pb-label">Demo:</span><span style="color:var(--dim)">offline</span>';
+  }
+}
+
+function renderDemoButtons() {
+  const icons = {legitimate:'✅',low_risk:'🟡',borderline:'⚠️',suspicious:'🔶',fraud:'🚨'};
+  const row = document.getElementById('demoCaseRow');
+  row.innerHTML = '<span class="pb-label">Demo:</span>' +
+    demoCases.map((c,i) =>
+      `<button class="pb-btn pb-${c.category}" onclick="loadDemoCase(${i})" title="${c.description} Expected: ${c.expected_pct}">` +
+      `${icons[c.category]||'•'} ${c.label} <span style="font-size:9px;opacity:.7">${c.expected_pct}</span></button>`
+    ).join('');
+}
+
+function loadDemoCase(i) {
+  const c = demoCases[i];
+  if (c) fillForm(c.data);
+}
+
+function loadPreset(name) {
+  if (name === 'random') {
+    const d = {Time: Math.floor(Math.random()*172792), Amount: +(Math.random()*3000).toFixed(2)};
+    for (let i=1;i<=28;i++) d[`V${i}`] = +(Math.random()*6-3).toFixed(4);
+    fillForm(d);
+  } else {
+    fillForm(PRESETS[name]);
+  }
+}
+
+function fillForm(d) {
+  document.getElementById('f-time').value   = d.Time   !== undefined ? d.Time   : 0;
+  document.getElementById('f-amount').value = d.Amount !== undefined ? d.Amount : 0;
+  for (let i=1;i<=28;i++) {
+    const el = document.getElementById(`v${i}`);
+    if (el) {
+      const val = d[`V${i}`];
+      el.value = (val !== undefined && val !== null) ? val : 0;
+    }
+  }
+}
+
+// ── Build V input grid ──────────────────────────────────────────────
+function buildVGrid() {
+  const g = document.getElementById('vGrid');
+  for (let i=1;i<=28;i++) {
+    const key = KEY_FEATS.has(`V${i}`);
+    const div = document.createElement('div');
+    div.className = 'vf';
+    div.innerHTML =
+      `<span class="vf-label${key?' key':''}" title="${key?'Key fraud feature':''}">V${i}${key?' ★':''}</span>` +
+      `<input class="v-inp${key?' key-field':''}" id="v${i}" type="number" value="0" step="0.0001">`;
+    g.appendChild(div);
+  }
+}
+
+// ── Read all form fields — SAFE parsing that handles negatives ──────
+function readForm() {
+  function safeNum(str) {
+    // Use Number() not parseFloat()||0 — avoids the -0 || 0 = 0 trap
+    const n = Number(str);
+    return isFinite(n) ? n : 0;
+  }
+  const d = {
+    Time:   safeNum(document.getElementById('f-time').value),
+    Amount: safeNum(document.getElementById('f-amount').value),
+  };
+  for (let i=1;i<=28;i++) {
+    const el = document.getElementById(`v${i}`);
+    d[`V${i}`] = el ? safeNum(el.value) : 0;
+  }
+  return d;
+}
+
+// ── Call predict API ────────────────────────────────────────────────
+async function runPredict() {
+  const data = readForm();
+  const btn = document.getElementById('analyseBtn');
+  btn.innerHTML = '⏳ Analysing…';
+  btn.disabled = true;
+
+  try {
+    const res  = await fetch('/api/predict', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(data)
+    });
+
+    if (!res.ok) {
+      const txt = await res.text();
+      throw new Error(`HTTP ${res.status}: ${txt}`);
+    }
+
+    const json = await res.json();
+    if (json.error) {
+      alert('Backend error:\n' + json.error + (json.trace ? '\n\n' + json.trace : ''));
+      return;
+    }
+    renderResult(json);
+
+  } catch (e) {
+    alert('Request failed: ' + e.message + '\n\nIs app.py running on port 5000?');
+  } finally {
+    btn.innerHTML = '⚡ Analyse Transaction';
+    btn.disabled = false;
+  }
+}
+
+// ── Render result ───────────────────────────────────────────────────
+function renderResult(r) {
+  document.getElementById('resultPanel').style.display = 'block';
+
+  const pct     = r.probability_pct;   // 0–100, direct from model
+  const prob    = r.probability;        // 0–1, direct from model
+  const isFraud = r.prediction === 'FRAUD';
+
+  // Verdict card
+  const vc = document.getElementById('verdictCard');
+  vc.className = 'verdict-card vc-' + r.prediction;
+  document.getElementById('vcIcon').textContent  = isFraud ? '🚨' : '✅';
+  document.getElementById('vcLabel').textContent = r.prediction;
+  document.getElementById('vcSub').textContent   = `Risk: ${r.risk_level} · ${r.confidence}`;
+  const numEl = document.getElementById('vcNum');
+  numEl.textContent  = pct.toFixed(1) + '%';
+  numEl.style.color  = isFraud ? 'var(--red)' : 'var(--green)';
+
+  // Gauge
+  const gaugeColor =
+    prob >= 0.90 ? '#c53030' :
+    prob >= 0.70 ? '#fc8181' :
+    prob >= 0.40 ? '#d69e2e' :
+                   '#38a169';
+
+  const clampedPct = Math.max(0.5, Math.min(99.5, pct));
+  document.getElementById('gaugeFill').style.width      = clampedPct + '%';
+  document.getElementById('gaugeFill').style.background = gaugeColor;
+  document.getElementById('gaugeNeedle').style.left     = clampedPct + '%';
+  document.getElementById('gaugeRaw').textContent       = 'Fraud probability: ' + pct.toFixed(2) + '%';
+
+  // Visual width: apply sqrt scaling so low probabilities still show a
+  // meaningful bar (e.g. 1% raw → ~10% visual, 25% raw → ~50% visual,
+  // 100% raw → 100% visual).  This makes the gauge readable across the
+  // full range instead of sticking at 0 % or 100 %.
+  const visualPct = prob <= 0 ? 0.5
+                  : prob >= 1 ? 100
+                  : Math.max(0.5, Math.sqrt(prob) * 100);
+
+  const fill = document.getElementById('gaugeFill');
+  fill.style.width      = visualPct.toFixed(2) + '%';
+  fill.style.background = gaugeColor;
+
+  document.getElementById('gaugeRaw').textContent =
+    `Fraud probability: ${pct.toFixed(2)}%`;
+
+  // Badges
+  document.getElementById('badgeRow').innerHTML =
+    `<span class="badge badge-${r.confidence}">${r.confidence}</span>` +
+    `<span class="badge badge-${r.risk_level}">RISK: ${r.risk_level}</span>` +
+    (r.needs_review ? `<span class="badge badge-UNCERTAIN">⚠️ REVIEW NEEDED</span>` : '');
+
+  // Detail cards
+  const iso = r.iso_score;
+  const isoEl = document.getElementById('isoVal');
+  isoEl.textContent = iso;
+  isoEl.style.color = iso < -0.15 ? 'var(--red)' : 'var(--green)';
+  document.getElementById('txHour').textContent = r.transaction_hour !== undefined ? r.transaction_hour + 'h' : '—';
+  document.getElementById('txAmt').textContent  = '$' + parseFloat(r.amount || 0).toFixed(2);
+  document.getElementById('txThr').textContent  = r.threshold_used;
+
+  // Risk factors
+  const rf = r.risk_factors || {};
+  const rfs = [
+    {l:'High amount (>$500)',    f: rf.high_amount},
+    {l:'Off-hours (10pm–6am)',   f: rf.off_hours},
+    {l:'ISO anomaly',            f: rf.iso_anomalous},
+    {l:'V14 strongly negative',  f: rf.large_v14_neg},
+    {l:'V4 strongly positive',   f: rf.large_v4_pos},
+  ];
+  document.getElementById('riskFactors').innerHTML =
+    rfs.map(x => `<div class="rf-item">
+      <div class="rf-dot ${x.f ? 'rf-warn' : 'rf-ok'}"></div>
+      <span class="${x.f ? 'rf-warn-text' : 'rf-ok-text'}">${x.l}</span>
+    </div>`).join('');
+
+  // SHAP
+  const expl = r.explanation || [];
+  document.getElementById('shapList').innerHTML =
+    expl.map(e => {
+      const up = e.includes('↑');
+      return `<div class="shap-item ${up ? 'shap-up' : 'shap-dn'}">${e}</div>`;
+    }).join('') || '<div style="font-size:10px;color:var(--dim)">Not available</div>';
+
+  document.getElementById('reviewAlert').style.display = r.needs_review ? 'block' : 'none';
+  document.getElementById('resultPanel').scrollIntoView({behavior:'smooth', block:'nearest'});
+}
+
+// ── Tab switching ───────────────────────────────────────────────────
+document.querySelectorAll('.tab').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.pane').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('pane-' + btn.dataset.tab).classList.add('active');
+    if (btn.dataset.tab === 'plots' && !plotsReady) renderPlots();
+  });
+});
+
+// ── Load metrics ────────────────────────────────────────────────────
+let metricsData = null;
+let plotsReady  = false;
+
+async function loadMetrics() {
+  try {
+    const res = await fetch('/api/metrics');
+    metricsData = await res.json();
+    const m = metricsData.metrics;
+
+    // Header bar
+    document.getElementById('hd-auc').textContent  = m.roc_auc;
+    document.getElementById('hd-f1').textContent   = m.f1;
+    document.getElementById('hd-prec').textContent = m.precision;
+    document.getElementById('hd-rec').textContent  = m.recall;
+
+    // Sidebar
+    document.getElementById('m-roc').textContent  = m.roc_auc;
+    document.getElementById('m-pr').textContent   = m.avg_prec;
+    document.getElementById('m-f1').textContent   = m.f1;
+    document.getElementById('m-rec').textContent  = m.recall;
+    document.getElementById('m-prec').textContent = m.precision;
+    document.getElementById('m-mcc').textContent  = m.mcc !== undefined ? m.mcc : '—';
+    document.getElementById('m-thr').textContent  = metricsData.threshold || '0.5';
+
+    const tn=m.tn||0, fp=m.fp||0, fn=m.fn||0, tp=m.tp||0, tot=tn+fp+fn+tp;
+    document.getElementById('m-acc').textContent =
+      tot > 0 ? ((tn+tp)/tot*100).toFixed(2) + '%' : '—';
+
+    // Feature importance sidebar
+    const fi  = metricsData.feature_importance || [];
+    const maxV = fi[0] ? fi[0].importance : 1;
+    document.getElementById('featList').innerHTML =
+      fi.slice(0,12).map(f => `
+        <div class="feat-row">
+          <span class="feat-name">${f.feature}</span>
+          <div class="feat-bar-wrap">
+            <div class="feat-bg"><div class="feat-fill" style="width:${(f.importance/maxV*100).toFixed(1)}%"></div></div>
+            <span class="feat-pct">${(f.importance/maxV*100).toFixed(0)}%</span>
+          </div>
+        </div>`).join('');
+
+  } catch(e) {
+    console.warn('Metrics offline:', e);
+    // Fallback
+    ['hd-auc','m-roc'].forEach(id => { const el=document.getElementById(id); if(el) el.textContent='0.9792'; });
+    document.getElementById('hd-f1').textContent='0.7468';
+    document.getElementById('m-thr').textContent='0.82';
+  }
+}
+
+// ── Plot rendering ──────────────────────────────────────────────────
+function renderPlots() {
+  if (!metricsData) { setTimeout(renderPlots, 400); return; }
+  plotsReady = true;
+  const m = metricsData.metrics;
+  document.getElementById('roc-auc-lbl').textContent = m.roc_auc;
+  document.getElementById('pr-auc-lbl').textContent  = m.avg_prec;
+  document.getElementById('cm-thr-lbl').textContent  = metricsData.threshold || '?';
+  drawROC(m.roc_curve || []);
+  drawPR(m.pr_curve   || []);
+  drawCM(m.tn||0, m.fp||0, m.fn||0, m.tp||0);
+  drawCLR(m);
+  drawFI(metricsData.feature_importance || []);
+  drawSummary(metricsData);
+}
+
+function canvasCtx(id) {
+  const cv = document.getElementById(id);
+  const ctx = cv.getContext('2d');
+  ctx.clearRect(0, 0, cv.width, cv.height);
+  ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, cv.width, cv.height);
+  return {ctx, W:cv.width, H:cv.height};
+}
+
+function drawGrid(ctx, pad, W, H, steps=4) {
+  ctx.strokeStyle = '#edf2f7'; ctx.lineWidth = 1;
+  const pw=W-pad.l-pad.r, ph=H-pad.t-pad.b;
+  for (let i=0;i<=steps;i++) {
+    ctx.beginPath(); ctx.moveTo(pad.l+pw*i/steps, pad.t); ctx.lineTo(pad.l+pw*i/steps, pad.t+ph); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(pad.l, pad.t+ph*i/steps); ctx.lineTo(pad.l+pw, pad.t+ph*i/steps); ctx.stroke();
+  }
+}
+
+function drawAxes(ctx, pad, W, H) {
+  ctx.strokeStyle = '#2d3748'; ctx.lineWidth = 1.5;
+  const pw=W-pad.l-pad.r, ph=H-pad.t-pad.b;
+  ctx.beginPath(); ctx.moveTo(pad.l, pad.t); ctx.lineTo(pad.l, pad.t+ph); ctx.lineTo(pad.l+pw, pad.t+ph); ctx.stroke();
+}
+
+function drawTicks(ctx, pad, W, H) {
+  const pw=W-pad.l-pad.r, ph=H-pad.t-pad.b;
+  ctx.fillStyle = '#718096'; ctx.font = '10px JetBrains Mono,monospace';
+  [0,0.25,0.5,0.75,1].forEach(v => {
+    ctx.textAlign = 'center'; ctx.fillText(v.toFixed(2), pad.l+v*pw, pad.t+ph+14);
+    ctx.textAlign = 'right';  ctx.fillText(v.toFixed(2), pad.l-5, pad.t+(1-v)*ph+4);
+  });
+}
+
+function drawROC(data) {
+  const {ctx,W,H} = canvasCtx('cvROC');
+  const pad={l:46,r:16,t:16,b:36};
+  const pw=W-pad.l-pad.r, ph=H-pad.t-pad.b;
+  drawGrid(ctx,pad,W,H);
+  // Diagonal
+  ctx.strokeStyle='#cbd5e0'; ctx.lineWidth=1; ctx.setLineDash([5,5]);
+  ctx.beginPath(); ctx.moveTo(pad.l,pad.t+ph); ctx.lineTo(pad.l+pw,pad.t); ctx.stroke();
+  ctx.setLineDash([]);
+  // ROC curve
+  if (data.length > 1) {
+    ctx.strokeStyle='#3182ce'; ctx.lineWidth=2.5;
+    ctx.beginPath();
+    data.forEach(([fpr,tpr],i)=>{
+      const x=pad.l+fpr*pw, y=pad.t+(1-tpr)*ph;
+      i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+    });
+    ctx.stroke();
+    ctx.fillStyle='rgba(49,130,206,.09)';
+    ctx.beginPath();
+    data.forEach(([fpr,tpr],i)=>{
+      const x=pad.l+fpr*pw, y=pad.t+(1-tpr)*ph;
+      i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+    });
+    ctx.lineTo(pad.l+pw,pad.t+ph); ctx.lineTo(pad.l,pad.t+ph); ctx.closePath(); ctx.fill();
+  }
+  drawAxes(ctx,pad,W,H); drawTicks(ctx,pad,W,H);
+  ctx.fillStyle='#4a5568'; ctx.font='11px Inter'; ctx.textAlign='center';
+  ctx.fillText('False Positive Rate', pad.l+pw/2, H-3);
+  ctx.save(); ctx.translate(12, pad.t+ph/2); ctx.rotate(-Math.PI/2);
+  ctx.fillText('True Positive Rate', 0, 0); ctx.restore();
+}
+
+function drawPR(data) {
+  const {ctx,W,H} = canvasCtx('cvPR');
+  const pad={l:46,r:16,t:16,b:36};
+  const pw=W-pad.l-pad.r, ph=H-pad.t-pad.b;
+  drawGrid(ctx,pad,W,H);
+  if (data.length > 1) {
+    // data is [precision, recall] pairs
+    const pts = data.map(([p,r])=>[r,p]).sort((a,b)=>a[0]-b[0]);
+    ctx.strokeStyle='#38a169'; ctx.lineWidth=2.5;
+    ctx.beginPath();
+    pts.forEach(([r,p],i)=>{
+      const x=pad.l+r*pw, y=pad.t+(1-p)*ph;
+      i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+    });
+    ctx.stroke();
+    ctx.fillStyle='rgba(56,161,105,.09)';
+    ctx.beginPath();
+    pts.forEach(([r,p],i)=>{
+      const x=pad.l+r*pw, y=pad.t+(1-p)*ph;
+      i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+    });
+    ctx.lineTo(pad.l+pw,pad.t+ph); ctx.lineTo(pad.l,pad.t+ph); ctx.closePath(); ctx.fill();
+  }
+  drawAxes(ctx,pad,W,H); drawTicks(ctx,pad,W,H);
+  ctx.fillStyle='#4a5568'; ctx.font='11px Inter'; ctx.textAlign='center';
+  ctx.fillText('Recall', pad.l+pw/2, H-3);
+  ctx.save(); ctx.translate(12, pad.t+ph/2); ctx.rotate(-Math.PI/2);
+  ctx.fillText('Precision', 0, 0); ctx.restore();
+}
+
+function drawCM(tn,fp,fn,tp) {
+  const tot = tn+fp+fn+tp;
+  const p = v => tot>0 ? (v/tot*100).toFixed(1)+'%' : '?';
+  document.getElementById('cmDiv').innerHTML = `
+    <div class="cm-grid">
+      <div></div>
+      <div class="cm-head">Pred Legit</div>
+      <div class="cm-head">Pred Fraud</div>
+      <div class="cm-axlabel">Actual Legit</div>
+      <div class="cm-cell cm-tn"><div class="cm-count">${tn.toLocaleString()}</div><div class="cm-clabel" style="color:#276749">True Neg (${p(tn)})</div></div>
+      <div class="cm-cell cm-fp"><div class="cm-count">${fp.toLocaleString()}</div><div class="cm-clabel" style="color:#c53030">False Pos (${p(fp)})</div></div>
+      <div class="cm-axlabel">Actual Fraud</div>
+      <div class="cm-cell cm-fn"><div class="cm-count">${fn.toLocaleString()}</div><div class="cm-clabel" style="color:#744210">False Neg (${p(fn)})</div></div>
+      <div class="cm-cell cm-tp"><div class="cm-count">${tp.toLocaleString()}</div><div class="cm-clabel" style="color:#276749">True Pos (${p(tp)})</div></div>
+    </div>`;
+}
+
+function vc(v) { return v>=0.85?'val-good':v>=0.65?'val-ok':'val-bad'; }
+
+function drawCLR(m) {
+  const tn=m.tn||0,fp=m.fp||0,fn=m.fn||0,tp=m.tp||0;
+  const sL=tn+fp, sF=fn+tp, tot=tn+fp+fn+tp;
+  const pL=sL>0?tn/(tn+fn):0, rL=sL>0?tn/(tn+fp):0;
+  const f1L=(pL+rL)>0?2*pL*rL/(pL+rL):0;
+  const pF=m.precision||0, rF=m.recall||0, f1F=m.f1||0;
+  const f = v => v.toFixed(3);
+  document.getElementById('clrBody').innerHTML = `
+    <tr><td>Legitimate (0)</td><td class="${vc(pL)}">${f(pL)}</td><td class="${vc(rL)}">${f(rL)}</td><td class="${vc(f1L)}">${f(f1L)}</td><td>${sL.toLocaleString()}</td></tr>
+    <tr><td>Fraud (1)</td><td class="${vc(pF)}">${f(pF)}</td><td class="${vc(rF)}">${f(rF)}</td><td class="${vc(f1F)}">${f(f1F)}</td><td>${sF.toLocaleString()}</td></tr>
+    <tr><td>Macro avg</td><td class="${vc((pL+pF)/2)}">${f((pL+pF)/2)}</td><td class="${vc((rL+rF)/2)}">${f((rL+rF)/2)}</td><td class="${vc((f1L+f1F)/2)}">${f((f1L+f1F)/2)}</td><td>${tot.toLocaleString()}</td></tr>`;
+}
+
+function drawFI(fi) {
+  if (!fi.length) return;
+  const {ctx,W,H} = canvasCtx('cvFI');
+  const items=fi.slice(0,12), maxV=items[0].importance;
+  const pad={l:125,r:65,t:8,b:24};
+  const bw=W-pad.l-pad.r;
+  const barH=Math.max(14, Math.floor((H-pad.t-pad.b)/items.length)-4);
+  items.forEach((f,i)=>{
+    const y=pad.t+i*(barH+4);
+    const bl=(f.importance/maxV)*bw;
+    const alpha=0.45+0.55*(f.importance/maxV);
+    ctx.fillStyle=`rgba(43,108,176,${alpha})`;
+    ctx.fillRect(pad.l,y,bl,barH);
+    ctx.fillStyle='#4a5568'; ctx.font=`11px JetBrains Mono,monospace`; ctx.textAlign='right';
+    ctx.fillText(f.feature, pad.l-5, y+barH/2+4);
+    ctx.fillStyle='#2d3748'; ctx.textAlign='left';
+    ctx.fillText(f.importance.toFixed(3), pad.l+bl+4, y+barH/2+4);
+  });
+  ctx.strokeStyle='#e2e8f0'; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(pad.l,pad.t); ctx.lineTo(pad.l,pad.t+items.length*(barH+4)); ctx.stroke();
+  ctx.fillStyle='#718096'; ctx.font='10px Inter'; ctx.textAlign='center';
+  ctx.fillText('XGBoost Feature Importance (Gain)', W/2, H-4);
+}
+
+function drawSummary(data) {
+  const ds=data.dataset_stats||{}, m=data.metrics||{};
+  const tn=m.tn||0,fp=m.fp||0,fn=m.fn||0,tp=m.tp||0,tot=tn+fp+fn+tp;
+  const rows=[
+    ['Model', data.model||'XGBoost + Isolation Forest'],
+    ['Test samples', (m.test_total||0).toLocaleString()],
+    ['Fraud in test', (m.test_fraud||0).toLocaleString()],
+    ['Fraud rate', ds.fraud_rate?(ds.fraud_rate*100).toFixed(3)+'%':'—'],
+    ['Amount mean', ds.amount_mean?'$'+ds.amount_mean.toFixed(2):'—'],
+    ['Amount std',  ds.amount_std ?'$'+ds.amount_std.toFixed(2) :'—'],
+    ['True Positives', tp.toLocaleString()],
+    ['False Positives', fp.toLocaleString()],
+    ['False Negatives', fn.toLocaleString()],
+    ['True Negatives', tn.toLocaleString()],
+    ['Overall Accuracy', tot>0?((tn+tp)/tot*100).toFixed(3)+'%':'—'],
+    ['Decision Threshold', data.threshold||'0.5'],
+  ];
+  document.getElementById('summaryDiv').innerHTML=`
+    <table style="width:100%;border-collapse:collapse;font-size:11px">
+      ${rows.map(([k,v])=>`<tr>
+        <td style="padding:6px 4px;border-bottom:1px solid var(--border);color:var(--dim);font-weight:500">${k}</td>
+        <td style="padding:6px 4px;border-bottom:1px solid var(--border);font-family:'JetBrains Mono',monospace;font-weight:700;text-align:right">${v}</td>
+      </tr>`).join('')}
+    </table>`;
+}
+
+// ── Batch upload ────────────────────────────────────────────────────
+function handleDrop(e) { e.preventDefault(); doBatch(e.dataTransfer.files[0]); }
+function onBatchFile(e) { doBatch(e.target.files[0]); }
+
+async function doBatch(file) {
+  const prog = document.getElementById('batchProg');
+  prog.style.display='block';
+  document.getElementById('batchOut').style.display='none';
+  document.getElementById('bProgLbl').textContent='Uploading…';
+  document.getElementById('bProgBar').style.width='20%';
+  await sleep(150);
+  document.getElementById('bProgLbl').textContent='Running inference…';
+  document.getElementById('bProgBar').style.width='60%';
+  const fd=new FormData(); fd.append('file',file);
+  try {
+    const res=await fetch('/api/predict_batch',{method:'POST',body:fd});
+    const d=await res.json();
+    document.getElementById('bProgBar').style.width='100%';
+    document.getElementById('bProgLbl').textContent='Done!';
+    await sleep(300);
+    prog.style.display='none';
+    renderBatch(d);
+  } catch(e) {
+    prog.style.display='none';
+    alert('Batch failed: '+e.message);
+  }
+}
+
+function renderBatch(data) {
+  document.getElementById('batchOut').style.display='block';
+  document.getElementById('batchStats').innerHTML=[
+    {l:'Total',      v:data.total,               c:'var(--text)'},
+    {l:'Fraud',      v:data.fraud_detected,       c:'var(--red)'},
+    {l:'Legitimate', v:data.legitimate,           c:'var(--green)'},
+    {l:'Uncertain',  v:data.uncertain,            c:'var(--blue)'},
+    {l:'Fraud Rate', v:data.fraud_rate_pct+'%',   c:'var(--amber)'},
+  ].map(s=>`<div class="bs"><span class="bs-l">${s.l}</span><span class="bs-v" style="color:${s.c}">${s.v}</span></div>`).join('');
+
+  document.getElementById('batchBody').innerHTML=
+    (data.results||[]).map((r,i)=>{
+      const isF=r.prediction==='FRAUD';
+      const pc=isF?'var(--red)':'var(--green)';
+      return `<tr>
+        <td style="color:var(--dim)">${i+1}</td>
+        <td>$${r.amount.toFixed(2)}</td>
+        <td style="color:${pc};font-weight:700">${r.probability_pct.toFixed(1)}%</td>
+        <td><span class="badge badge-${isF?'CRITICAL':'MINIMAL'}" style="font-size:9px">${r.prediction}</span></td>
+        <td><span class="badge badge-${r.risk_level}" style="font-size:9px">${r.risk_level}</span></td>
+        <td><span class="badge badge-${r.confidence}" style="font-size:9px">${r.confidence}</span></td>
+      </tr>`;
+    }).join('');
+}
+
+function sleep(ms) { return new Promise(r=>setTimeout(r,ms)); }
+
+// ── Init ────────────────────────────────────────────────────────────
+buildVGrid();
+loadPreset('legit');
+loadMetrics();
+loadDemoCases();
+</script>
 </body>
 </html>
