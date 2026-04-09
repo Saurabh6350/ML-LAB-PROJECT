@@ -1,0 +1,7 @@
+model/
+*.joblib
+*.pkl
+*.csv
+__pycache__/
+*.pyc
+.env

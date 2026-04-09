@@ -1,0 +1,322 @@
+"""
+train.py — FraudSentinel Training Pipeline
+==========================================
+Novelty: Hybrid Isolation Forest + XGBoost with velocity features & SHAP
+
+Usage:
+    python train.py                        # synthetic demo data
+    python train.py --data creditcard.csv  # your Kaggle dataset
+"""
+
+import argparse
+import json
+import os
+import warnings
+import numpy as np
+import pandas as pd
+import joblib
+
+warnings.filterwarnings("ignore")
+
+from sklearn.model_selection import train_test_split, StratifiedKFold
+from sklearn.preprocessing import StandardScaler
+from sklearn.ensemble import IsolationForest
+from sklearn.metrics import (
+    roc_auc_score, average_precision_score,
+    f1_score, precision_score, recall_score,
+    confusion_matrix, roc_curve, precision_recall_curve
+)
+from imblearn.over_sampling import SMOTE
+from xgboost import XGBClassifier
+import shap
+
+MODEL_DIR = os.path.join(os.path.dirname(__file__), "model")
+os.makedirs(MODEL_DIR, exist_ok=True)
+
+# ═══════════════════════════════════════════════════════════════════
+# 1. DATA LOADING
+# ═══════════════════════════════════════════════════════════════════
+
+def load_data(csv_path=None):
+    """Load real dataset or generate synthetic Kaggle-format data."""
+    if csv_path and os.path.exists(csv_path):
+        print(f"[DATA] Loading: {csv_path}")
+        df = pd.read_csv(csv_path)
+        required = {"Class", "Amount", "Time"}
+        missing = required - set(df.columns)
+        if missing:
+            raise ValueError(f"CSV missing columns: {missing}")
+        print(f"[DATA] {len(df):,} rows | fraud={df['Class'].sum()} "
+              f"({df['Class'].mean()*100:.3f}%)")
+        return df
+
+    print("[DATA] No CSV provided — generating synthetic Kaggle-format data...")
+    np.random.seed(42)
+    N_L, N_F = 284315, 492
+
+    def make_class(n, label, amount_mu, amount_sig, v_shifts):
+        d = {
+            "Time":   np.random.uniform(0, 172792, n),
+            "Amount": np.abs(np.random.lognormal(amount_mu, amount_sig, n)),
+            "Class":  label,
+        }
+        for i in range(1, 29):
+            d[f"V{i}"] = np.random.normal(v_shifts.get(i, 0), 1.0 + 0.5*(i%3), n)
+        return pd.DataFrame(d)
+
+    fraud_shifts = {4: -3.1, 11: -4.2, 12: -3.8, 14: -4.5,
+                    17: -2.9, 10: -2.5,  3:  3.2,  7:  2.8}
+    legit = make_class(N_L, 0, 3.2, 1.8, {})
+    fraud = make_class(N_F, 1, 4.5, 2.1, fraud_shifts)
+
+    df = pd.concat([legit, fraud]).sample(frac=1, random_state=42).reset_index(drop=True)
+    print(f"[DATA] {len(df):,} rows | fraud={N_F} ({N_F/len(df)*100:.3f}%)")
+    return df
+
+
+# ═══════════════════════════════════════════════════════════════════
+# 2. NOVELTY FEATURE ENGINEERING
+#    velocity features on top of raw V1-V28
+# ═══════════════════════════════════════════════════════════════════
+
+def engineer_features(df):
+    """Add velocity / statistical features beyond raw V-columns."""
+    df = df.copy()
+
+    # Log-scaled amount (fraud amounts are often extreme)
+    df["amount_log"] = np.log1p(df["Amount"])
+
+    # Amount z-score within the dataset
+    mu, sigma = df["Amount"].mean(), df["Amount"].std()
+    df["amount_zscore"] = (df["Amount"] - mu) / (sigma + 1e-9)
+
+    # Time-of-day bucket (fraud spikes late night: bins 0-7 = night)
+    df["time_bin"] = ((df["Time"] % 86400) / 3600).astype(int) // 3
+
+    # V-feature interaction: top fraud-correlated pair product
+    df["v14_v4_interact"] = df["V14"] * df["V4"]
+    df["v11_v12_interact"] = df["V11"] * df["V12"]
+
+    return df
+
+
+# ═══════════════════════════════════════════════════════════════════
+# 3. NOVELTY: ISOLATION FOREST meta-feature
+#    Train unsupervised anomaly detector; its score becomes a feature
+# ═══════════════════════════════════════════════════════════════════
+
+def add_isolation_score(X_train, X_test, feature_cols):
+    """
+    Train Isolation Forest on TRAINING data only (unsupervised).
+    Append anomaly_score as a new feature to both train and test.
+    """
+    print("[ISO] Training Isolation Forest (contamination=0.002)...")
+    iso = IsolationForest(
+        n_estimators=200,
+        contamination=0.002,   # ≈ 0.173% fraud rate
+        max_samples="auto",
+        random_state=42,
+        n_jobs=-1
+    )
+    iso.fit(X_train[feature_cols])
+
+    # score_samples returns negative: more negative = more anomalous
+    X_train = X_train.copy()
+    X_test  = X_test.copy()
+    X_train["iso_anomaly_score"] = iso.score_samples(X_train[feature_cols])
+    X_test["iso_anomaly_score"]  = iso.score_samples(X_test[feature_cols])
+
+    print(f"[ISO] Isolation score injected as meta-feature.")
+    return X_train, X_test, iso
+
+
+# ═══════════════════════════════════════════════════════════════════
+# 4. PREPROCESSING
+# ═══════════════════════════════════════════════════════════════════
+
+def preprocess(df):
+    df = engineer_features(df)
+
+    # All columns except Class
+    feat_cols = [c for c in df.columns if c != "Class"]
+    X = df[feat_cols].copy()
+    y = df["Class"].values
+
+    # Scale continuous columns
+    scale_cols = ["Amount", "Time", "amount_log",
+                  "amount_zscore", "time_bin",
+                  "v14_v4_interact", "v11_v12_interact"]
+    scale_cols = [c for c in scale_cols if c in X.columns]
+
+    scaler = StandardScaler()
+    X[scale_cols] = scaler.fit_transform(X[scale_cols])
+
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.2, stratify=y, random_state=42
+    )
+    print(f"[SPLIT] Train={len(X_train):,} | Test={len(X_test):,} | "
+          f"Train-fraud={y_train.sum()} | Test-fraud={y_test.sum()}")
+    return X_train, X_test, y_train, y_test, scaler, feat_cols
+
+
+# ═══════════════════════════════════════════════════════════════════
+# 5. SMOTE + XGBOOST TRAINING
+# ═══════════════════════════════════════════════════════════════════
+
+def train_model(X_train, y_train):
+    print("[SMOTE] Oversampling minority class (k=5)...")
+    sm = SMOTE(random_state=42, k_neighbors=5)
+    X_res, y_res = sm.fit_resample(X_train, y_train)
+    print(f"[SMOTE] Balanced: {len(X_res):,} samples")
+
+    print("[XGB] Training XGBoost (200 estimators, lr=0.05)...")
+    clf = XGBClassifier(
+        n_estimators=200,
+        learning_rate=0.05,
+        max_depth=6,
+        min_child_weight=3,
+        subsample=0.8,
+        colsample_bytree=0.8,
+        gamma=0.1,
+        scale_pos_weight=1,   # SMOTE already balanced
+        eval_metric="aucpr",
+        use_label_encoder=False,
+        random_state=42,
+        n_jobs=-1,
+    )
+    clf.fit(X_res, y_res,
+            eval_set=[(X_train, y_train)],
+            verbose=False)
+    return clf
+
+
+# ═══════════════════════════════════════════════════════════════════
+# 6. EVALUATION
+# ═══════════════════════════════════════════════════════════════════
+
+def evaluate(clf, X_test, y_test, feature_cols_all):
+    y_pred = clf.predict(X_test)
+    y_prob = clf.predict_proba(X_test)[:, 1]
+
+    tn, fp, fn, tp = confusion_matrix(y_test, y_pred).ravel()
+
+    # ROC curve points (sampled for JSON)
+    fpr, tpr, _ = roc_curve(y_test, y_prob)
+    step = max(1, len(fpr) // 100)
+    roc_pts = [[round(float(a),4), round(float(b),4)]
+               for a, b in zip(fpr[::step], tpr[::step])]
+
+    # PR curve points
+    prec_c, rec_c, _ = precision_recall_curve(y_test, y_prob)
+    step2 = max(1, len(prec_c) // 100)
+    pr_pts = [[round(float(a),4), round(float(b),4)]
+              for a, b in zip(rec_c[::step2], prec_c[::step2])]
+
+    metrics = {
+        "roc_auc":   round(roc_auc_score(y_test, y_prob), 4),
+        "avg_prec":  round(average_precision_score(y_test, y_prob), 4),
+        "f1":        round(f1_score(y_test, y_pred), 4),
+        "precision": round(precision_score(y_test, y_pred, zero_division=0), 4),
+        "recall":    round(recall_score(y_test, y_pred), 4),
+        "tn": int(tn), "fp": int(fp), "fn": int(fn), "tp": int(tp),
+        "test_total": int(len(y_test)),
+        "test_fraud": int(y_test.sum()),
+        "roc_curve": roc_pts,
+        "pr_curve":  pr_pts,
+    }
+
+    print("\n── Evaluation ──────────────────────────────")
+    for k, v in metrics.items():
+        if k not in ("roc_curve", "pr_curve"):
+            print(f"  {k:12s}: {v}")
+    return metrics
+
+
+# ═══════════════════════════════════════════════════════════════════
+# 7. SHAP EXPLAINER
+# ═══════════════════════════════════════════════════════════════════
+
+def build_shap(clf, X_train, feature_cols_all):
+    print("[SHAP] Building TreeExplainer...")
+    explainer = shap.TreeExplainer(clf)
+    # Compute on small sample for speed
+    sample = X_train.sample(min(500, len(X_train)), random_state=42)
+    shap_vals = explainer.shap_values(sample)
+    mean_abs  = np.abs(shap_vals).mean(axis=0)
+    pairs = sorted(zip(feature_cols_all, mean_abs), key=lambda x: -x[1])[:15]
+    fi = [{"feature": f, "importance": round(float(v), 5)} for f, v in pairs]
+    print("[SHAP] Done.")
+    return explainer, fi
+
+
+# ═══════════════════════════════════════════════════════════════════
+# 8. SAVE ARTIFACTS
+# ═══════════════════════════════════════════════════════════════════
+
+def save_all(clf, iso, scaler, explainer,
+             feat_cols_base, feat_cols_all, metrics, fi):
+    joblib.dump(clf,             f"{MODEL_DIR}/xgb_model.joblib")
+    joblib.dump(iso,             f"{MODEL_DIR}/iso_forest.joblib")
+    joblib.dump(scaler,          f"{MODEL_DIR}/scaler.joblib")
+    joblib.dump(explainer,       f"{MODEL_DIR}/shap_explainer.joblib")
+    joblib.dump(feat_cols_base,  f"{MODEL_DIR}/feature_cols_base.joblib")
+    joblib.dump(feat_cols_all,   f"{MODEL_DIR}/feature_cols_all.joblib")
+
+    summary = {
+        "model": "XGBoost + Isolation Forest Hybrid",
+        "novelty": [
+            "Isolation Forest anomaly score as meta-feature",
+            "Velocity feature engineering (amount_zscore, time_bin, log)",
+            "V-feature interaction terms (V14xV4, V11xV12)",
+            "SHAP per-prediction explainability",
+            "Confidence-gated alerting (CERTAIN/PROBABLE/UNCERTAIN)",
+            "SMOTE k=5 minority oversampling"
+        ],
+        "metrics":              metrics,
+        "feature_importance":   fi,
+        "train_features":       feat_cols_all,
+    }
+    with open(f"{MODEL_DIR}/metrics.json", "w") as f:
+        json.dump(summary, f, indent=2)
+
+    print(f"\n✓ All artifacts saved → {MODEL_DIR}/")
+    for fname in os.listdir(MODEL_DIR):
+        size = os.path.getsize(f"{MODEL_DIR}/{fname}") // 1024
+        print(f"  {fname:35s} {size:>6} KB")
+
+
+# ═══════════════════════════════════════════════════════════════════
+# MAIN
+# ═══════════════════════════════════════════════════════════════════
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--data", default=None,
+                        help="Path to creditcard.csv (optional)")
+    args = parser.parse_args()
+
+    print("=" * 55)
+    print("  FRAUDSENTINEL — TRAINING PIPELINE")
+    print("  Hybrid ISO-Forest + XGBoost | SMOTE | SHAP")
+    print("=" * 55)
+
+    df = load_data(args.data)
+    X_train, X_test, y_train, y_test, scaler, feat_cols_base = preprocess(df)
+
+    # Add Isolation Forest meta-feature
+    X_train, X_test, iso = add_isolation_score(X_train, X_test, feat_cols_base)
+    feat_cols_all = list(X_train.columns)
+
+    clf            = train_model(X_train, y_train)
+    metrics        = evaluate(clf, X_test, y_test, feat_cols_all)
+    explainer, fi  = build_shap(clf, X_train, feat_cols_all)
+    save_all(clf, iso, scaler, explainer,
+             feat_cols_base, feat_cols_all, metrics, fi)
+
+    print("\n" + "=" * 55)
+    print("  TRAINING COMPLETE — run: python app.py")
+    print("=" * 55)
+
+
+if __name__ == "__main__":
+    main()

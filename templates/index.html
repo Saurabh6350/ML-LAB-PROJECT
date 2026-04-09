@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ML Fraud Detection Project</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+<div class="scanlines"></div>
+
+<header>
+  <div class="hd-title">ML FRAUD DETECTION PROJECT</div>
+  <div class="hd-right">
+    <div class="hd-stat" id="hd-auc">AUC-ROC: —</div>
+    <div class="hd-stat" id="hd-f1">F1: —</div>
+    <div class="hd-badge">XGB + IsoForest</div>
+  </div>
+</header>
+
+<div class="page-wrap">
+
+  <!-- LEFT SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sb-title">MODEL PERFORMANCE</div>
+    <div class="metric-stack">
+      <div class="met-card" style="--c:#F5A623"><div class="met-label">AUC-ROC</div><div class="met-val" id="m-roc">—</div></div>
+      <div class="met-card" style="--c:#4A9EFF"><div class="met-label">AUC-PR</div><div class="met-val" id="m-pr">—</div></div>
+      <div class="met-card" style="--c:#2ECC71"><div class="met-label">F1-SCORE</div><div class="met-val" id="m-f1">—</div></div>
+      <div class="met-card" style="--c:#E8455A"><div class="met-label">RECALL</div><div class="met-val" id="m-rec">—</div></div>
+      <div class="met-card" style="--c:#A78BFA"><div class="met-label">PRECISION</div><div class="met-val" id="m-prec">—</div></div>
+      <div class="met-card" style="--c:#4A9EFF"><div class="met-label">MCC</div><div class="met-val" id="m-mcc">—</div></div>
+      <div class="met-card" style="--c:#F5A623"><div class="met-label">THRESHOLD</div><div class="met-val" id="m-thr">—</div></div>
+    </div>
+
+    <div class="sb-sep"></div>
+    <div class="sb-title">TOP FEATURES (SHAP)</div>
+    <div id="featureList" class="feat-list"></div>
+  </aside>
+
+  <!-- CENTER -->
+  <main class="center">
+    <div class="tab-bar">
+      <button class="tab active" data-tab="single">⚡ ANALYSE</button>
+      <button class="tab" data-tab="plots">📊 PLOTS</button>
+      <button class="tab" data-tab="batch">📂 BATCH</button>
+    </div>
+
+    <!-- SINGLE PREDICTION TAB -->
+    <div class="tab-pane active" id="tab-single">
+      <div class="pane-head">
+        <h2>TRANSACTION ANALYSER</h2>
+        <p>Enter transaction values — get fraud probability, risk level and SHAP explanation</p>
+      </div>
+
+      <div class="preset-row">
+        <span class="preset-label">QUICK:</span>
+        <button class="preset-btn" onclick="loadPreset('legit')">✅ Legit</button>
+        <button class="preset-btn" onclick="loadPreset('fraud')">🚨 Fraud</button>
+        <button class="preset-btn" onclick="loadPreset('uncertain')">⚠️ Edge</button>
+        <button class="preset-btn" onclick="loadPreset('random')">🎲 Random</button>
+      </div>
+      <div class="preset-row" id="demoCaseRow" style="flex-wrap:wrap;gap:5px">
+        <span class="preset-label">DEMO:</span>
+        <span class="dim-text">loading...</span>
+      </div>
+
+      <div class="tx-form">
+        <div class="form-row">
+          <div class="form-group">
+            <label>TIME (seconds)</label>
+            <input type="number" id="f-time" value="43200" step="1">
+          </div>
+          <div class="form-group">
+            <label>AMOUNT ($)</label>
+            <input type="number" id="f-amount" value="149.62" step="0.01">
+          </div>
+        </div>
+        <div class="v-grid" id="vGrid"></div>
+        <button class="analyse-btn" onclick="runPredict()">
+          <span class="btn-icon">⚡</span> ANALYSE TRANSACTION
+        </button>
+      </div>
+
+      <!-- RESULT -->
+      <div class="result-panel" id="resultPanel" style="display:none">
+        <div class="result-top">
+          <div class="verdict-col">
+            <div class="result-verdict" id="resultVerdict">—</div>
+            <div id="resultBadges"></div>
+          </div>
+          <div class="prob-col">
+            <div class="prob-header">
+              <span class="prob-label">FRAUD PROBABILITY</span>
+              <span class="prob-value" id="probValue">—%</span>
+            </div>
+            <div class="prob-bar-bg"><div class="prob-bar-fill" id="probBarFill"></div></div>
+            <div class="prob-zone-labels">
+              <span style="left:0%">0%</span>
+              <span style="left:30%">30%</span>
+              <span style="left:55%">55%</span>
+              <span style="left:80%">80%</span>
+              <span style="right:0%">100%</span>
+            </div>
+            <div class="prob-raw" id="probRaw"></div>
+          </div>
+        </div>
+
+        <div class="result-cards">
+          <div class="rc">
+            <div class="rc-title">ANOMALY SCORES</div>
+            <div class="rc-row"><span class="rc-label">ISO Forest Score</span><span class="rc-val" id="isoValue">—</span></div>
+            <div class="rc-note">More negative = more anomalous</div>
+            <div class="rc-row" style="margin-top:10px"><span class="rc-label">Hour of Day</span><span class="rc-val" id="txHour">—</span></div>
+            <div class="rc-row"><span class="rc-label">Amount</span><span class="rc-val" id="txAmount">—</span></div>
+          </div>
+          <div class="rc">
+            <div class="rc-title">RISK FACTORS</div>
+            <div id="riskFactors"></div>
+          </div>
+          <div class="rc">
+            <div class="rc-title">SHAP EXPLANATION</div>
+            <div id="shapList"></div>
+          </div>
+        </div>
+
+        <div class="review-banner" id="reviewBanner" style="display:none">
+          ⚠️ UNCERTAIN — probability 35%–65%. Flag for <strong>human review</strong>.
+        </div>
+      </div>
+    </div>
+
+    <!-- PLOTS TAB -->
+    <div class="tab-pane" id="tab-plots">
+      <div class="pane-head">
+        <h2>MODEL DIAGNOSTICS</h2>
+        <p>Performance plots computed on test split (20% holdout)</p>
+      </div>
+      <div class="plots-grid">
+
+        <div class="plot-card">
+          <div class="plot-title">ROC CURVE</div>
+          <canvas id="rocCanvas" width="340" height="260"></canvas>
+        </div>
+
+        <div class="plot-card">
+          <div class="plot-title">PRECISION-RECALL CURVE</div>
+          <canvas id="prCanvas" width="340" height="260"></canvas>
+        </div>
+
+        <div class="plot-card">
+          <div class="plot-title">CONFUSION MATRIX</div>
+          <canvas id="cmCanvas" width="340" height="260"></canvas>
+        </div>
+
+        <div class="plot-card">
+          <div class="plot-title">CLASSIFICATION REPORT</div>
+          <div id="classReport" class="class-report"></div>
+        </div>
+
+        <div class="plot-card plot-card-wide">
+          <div class="plot-title">FEATURE IMPORTANCE (SHAP)</div>
+          <canvas id="fiCanvas" width="700" height="260"></canvas>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- BATCH TAB -->
+    <div class="tab-pane" id="tab-batch">
+      <div class="pane-head">
+        <h2>BATCH PREDICTION</h2>
+        <p>Upload a CSV (Kaggle format: Time, V1–V28, Amount, optional Class)</p>
+      </div>
+      <div class="upload-drop" ondrop="handleDrop(event)" ondragover="event.preventDefault()"
+           onclick="document.getElementById('batchFile').click()">
+        <div class="drop-icon">📂</div>
+        <div class="drop-text">DROP CSV HERE or click to browse</div>
+        <div class="drop-sub">Format: Time, V1–V28, Amount [, Class]</div>
+        <input type="file" id="batchFile" accept=".csv" style="display:none" onchange="handleBatchFile(event)">
+      </div>
+      <div id="batchProgress" style="display:none">
+        <div class="bp-label" id="bpLabel">Uploading...</div>
+        <div class="bp-track"><div class="bp-bar" id="bpBar"></div></div>
+      </div>
+      <div id="batchResult" style="display:none">
+        <div class="batch-stats" id="batchStats"></div>
+        <div class="batch-table-wrap">
+          <table class="batch-table">
+            <thead><tr><th>#</th><th>AMOUNT</th><th>FRAUD PROB</th><th>PREDICTION</th><th>RISK</th><th>CONFIDENCE</th></tr></thead>
+            <tbody id="batchTbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- RIGHT LOG SIDEBAR -->
+  <aside class="log-sidebar">
+    <div class="sb-title" style="padding:14px 12px 0">LIVE LOG</div>
+    <div class="log-feed" id="logFeed">
+      <div class="log-item log-info">System ready</div>
+    </div>
+    <button class="clear-log-btn" onclick="clearLog()">CLEAR</button>
+  </aside>
+
+</div>
+<script src="/static/js/main.js"></script>
+</body>
+</html>
